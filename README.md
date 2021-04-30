@@ -1,186 +1,64 @@
-# Tagger
+# Semantic Role Labelling ( English ) 
 
-This is the source code for the paper "[Deep Semantic Role Labeling with Self-Attention](https://arxiv.org/abs/1712.01586)".
+Semantic Role Labeling is a task based on identifying the role of a word or a group of words in a sentence. Semantic role labeling is a very useful idea and is used intrinsically in a number of downstream tasks such as question-answering, inference, knowledge graph creation and participant detection.
 
-## Contents
+## A Span Selection Model for Semantic Role Labeling​
 
-* [Basics](#basics)
-  * [Notice](#notice)
-  * [Prerequisites](#prerequisites)
-* [Walkthrough](#walkthrough)
-  * [Data](#data)
-  * [Training](#training)
-  * [Decoding](#decoding)
-* [Benchmarks](#benchmarks)
-* [Pretrained Models](#pretrained-models)
-* [License](#license)
-* [Citation](#citation)
-* [Contact](#contact)
+### Abstract
 
-## Basics
+A simple and accurate span-based model that considers all possible argument spans and scores them for each label.​ Provides enough room for us to design and exploit the span-level features, that are difficult to use in token-based BIO tagging approaches.​ [Paper](https://arxiv.org/abs/1810.02245)
 
-### Notice
+Our complete code is in the [span_srl.ipynb](https://github.com/saisoorya2000/Semantic-Role-Labeling-SRL---ackerman/blob/main/span_selection_model/span_srl.ipynb) file and you can check our results in the output [log file](https://github.com/saisoorya2000/Semantic-Role-Labeling-SRL---ackerman/blob/main/span_selection_model/results/outputstats.txt)
 
-The original code used in the paper is implemented using TensorFlow 1.0, which is obsolete now. We have re-implemented our methods using PyTorch, which is based on [THUMT](https://github.com/THUNLP-MT/THUMT). The differences are as follows:
+### Prerequisites
 
-* We only implement DeepAtt-FFN model
-* Model ensemble are currently not available
+* Python 3
+* Theano
+* h5py
 
-Please check the git history to use TensorFlow implementation.
+### Parameters set for the training model
+
+1. No. of BiLSTM layers = 4
+2. Batch size = 32
+3. drop_rate = 0.1
+4. hidden_dim  = 300 (The hidden layer dimension in the BiLSTM) 
+5. Adam optimizer
+
+## Deep Semantic Role Labeling with Self-Attention
+
+### Abstract
+
+End-to-end SRL with recurrent neural networks (RNN) has gained increasing attention. However, it remains a major challenge for RNNs to handle structural information and long range dependencies. This model is based on self-attention which can directly capture the relationships between two tokens regardless of their distance. 
+
+We preprocessed the data as said in the paper, the GloVe embeddings and srlconll scripts generated using the file [fetch_required_data.sh](https://github.com/saisoorya2000/Semantic-Role-Labeling-SRL---ackerman/blob/main/deep_semantic_role_labelling/data_processing/fetch_required_data.sh). After preprocessing the data by following the procedures, the processed data has the following format:
+
+```
+2 My cats love hats . ||| B-A0 I-A0 B-V B-A1 O
+```
 
 ### Prerequisites
 
 * Python 3
 * PyTorch
 * TensorFlow-2.0 (CPU version)
-* GloVe embeddings and `srlconll` scripts
+* GloVe embeddings and srlconll scripts
 
-## Walkthrough
+### Parameters set for the training model
 
-### Data
+1. No. of hidden layers = 10
+2. Batch size = 8196
+3. drop_rate = 0.2
+4. hidden_dim  = 200 (The hidden layer dimension in the BiLSTM) 
+5. adadelta optimizer
+6. After training 400K steps, we halve the learning rate every 100K steps.
+7. feature_size = 100
 
-#### Training Data
+## Results
 
-We follow the same procedures described in the [deep_srl](https://github.com/luheng/deep_srl) repository to convert the CoNLL datasets.
-The GloVe embeddings and `srlconll` scripts can also be found in that link.
+All the results and experiments done in the context of both the papers are presented in a detailed manner in the project report.​
 
-If you followed these procedures, you can find that the processed data has the following format:
-```
-2 My cats love hats . ||| B-A0 I-A0 B-V B-A1 O
-```
+## Dataset
 
-*The CoNLL datasets are not publicly available. We cannot provide these datasets.*
+We have used the CoNLL-2012 dataset that is extracted from the OntoNotes v5.0 corpus.Since the files in the selected dataset were in _skel files, we have used centain scripts to convert them into _conll format. 
 
-#### Vocabulary
-
-You can use the `build_vocab.py` script to generate vocabularies. The command is described as follows:
-
-```[bash]
-python tagger/scripts/build_vocab.py --limit LIMIT --lower TRAIN_FILE OUTPUT_DIR
-```
-
-where `LIMIT` specifies the vocabulary size. This command will create two vocabularies named `vocab.txt` and `label.txt` in the `OUTPUT_DIR`.
-
-### Training
-
-Once you finished the procedures described above, you can start the training stage.
-
-#### Preparing the validation script
-
-An external validation script is required to enable the validation functionality.
-Here's the validation script we used to train an FFN model on the CoNLL-2005 dataset.
-Please make sure that the validation script can run properly.
-
-```[bash]
-#!/usr/bin/env bash
-SRLPATH=/PATH/TO/SRLCONLL
-TAGGERPATH=/PATH/TO/TAGGER
-DATAPATH=/PATH/TO/DATA
-EMBPATH=/PATH/TO/GLOVE_EMBEDDING
-DEVICE=0
-
-export PYTHONPATH=$TAGGERPATH:$PYTHONPATH
-export PERL5LIB="$SRLPATH/lib:$PERL5LIB"
-export PATH="$SRLPATH/bin:$PATH"
-
-python $TAGGERPATH/tagger/bin/predictor.py \
-  --input $DATAPATH/conll05.devel.txt \
-  --checkpoint train \
-  --model deepatt \
-  --vocab $DATAPATH/deep_srl/word_dict $DATAPATH/deep_srl/label_dict \
-  --parameters=device=$DEVICE,embedding=$EMBPATH/glove.6B.100d.txt \
-  --output tmp.txt
-
-python $TAGGERPATH/tagger/scripts/convert_to_conll.py tmp.txt $DATAPATH/conll05.devel.props.gold.txt output
-perl $SRLPATH/bin/srl-eval.pl $DATAPATH/conll05.devel.props.* output
-```
-
-#### Training command
-
-The command below is what we used to train a model on the CoNLL-2005 dataset. The content of `run.sh` is described in the above section.
-
-```[bash]
-#!/usr/bin/env bash
-SRLPATH=/PATH/TO/SRLCONLL
-TAGGERPATH=/PATH/TO/TAGGER
-DATAPATH=/PATH/TO/DATA
-EMBPATH=/PATH/TO/GLOVE_EMBEDDING
-DEVICE=[0]
-
-export PYTHONPATH=$TAGGERPATH:$PYTHONPATH
-export PERL5LIB="$SRLPATH/lib:$PERL5LIB"
-export PATH="$SRLPATH/bin:$PATH"
-
-python $TAGGERPATH/tagger/bin/trainer.py \
-  --model deepatt \
-  --input $DATAPATH/conll05.train.txt \
-  --output train \
-  --vocabulary $DATAPATH/deep_srl/word_dict $DATAPATH/deep_srl/label_dict \
-  --parameters="save_summary=false,feature_size=100,hidden_size=200,filter_size=800,"`
-               `"residual_dropout=0.2,num_hidden_layers=10,attention_dropout=0.1,"`
-               `"relu_dropout=0.1,batch_size=4096,optimizer=adadelta,initializer=orthogonal,"`
-               `"initializer_gain=1.0,train_steps=600000,"`
-               `"learning_rate_schedule=piecewise_constant_decay,"`
-               `"learning_rate_values=[1.0,0.5,0.25,],"`
-               `"learning_rate_boundaries=[400000,50000],device_list=$DEVICE,"`
-               `"clip_grad_norm=1.0,embedding=$EMBPATH/glove.6B.100d.txt,script=run.sh"
-```
-
-### Decoding
-
-The following is the command used to generate outputs:
-
-```[bash]
-#!/usr/bin/env bash
-SRLPATH=/PATH/TO/SRLCONLL
-TAGGERPATH=/PATH/TO/TAGGER
-DATAPATH=/PATH/TO/DATA
-EMBPATH=/PATH/TO/GLOVE_EMBEDDING
-DEVICE=0
-
-python $TAGGERPATH/tagger/bin/predictor.py \
-  --input $DATAPATH/conll05.test.wsj.txt \
-  --checkpoint train/best \
-  --model deepatt \
-  --vocab $DATAPATH/deep_srl/word_dict $DATAPATH/deep_srl/label_dict \
-  --parameters=device=$DEVICE,embedding=$EMBPATH/glove.6B.100d.txt \
-  --output tmp.txt
-
-```
-
-## Benchmarks
-
-We've performed 4 runs on CoNLL-05 datasets. The results are shown below.
-
-|  Runs  | Dev-P | Dev-R | Dev-F1 | WSJ-P | WSJ-R | WSJ-F1 | BROWN-P | BROWN-R | BROWN-F1 |
-| :----: | :---: | :---: | :----: | :---: | :---: | :----: | :-----: | :-----: | :------: |
-| Paper  |  82.6 | 83.6  |  83.1  |  84.5 |  85.2 |  84.8  |   73.5  |  74.6   |   74.1   |
-| Run0   |  82.9 | 83.7  |  83.3  |  84.6 |  85.0 |  84.8  |   73.5  |  74.0   |   73.8   |
-| Run1   |  82.3 | 83.4  |  82.9  |  84.4 |  85.3 |  84.8  |   72.5  |  73.9   |   73.2   |
-| Run2   |  82.7 | 83.6  |  83.2  |  84.8 |  85.4 |  85.1  |   73.2  |  73.9   |   73.6   |
-| Run3   |  82.3 | 83.6  |  82.9  |  84.3 |  84.9 |  84.6  |   72.3  |  73.6   |   72.9   |
-
-## Pretrained Models
-
-The pretrained models of TensorFlow implementation can be downloaded at [Google Drive](https://drive.google.com/open?id=1jvBlpOmqGdZEqnFrdWJkH1xHsGU2OjiP).
-
-## LICENSE
-
-BSD
-
-## Citation
-
-If you use our codes, please cite our paper:
-
-```
-@inproceedings{tan2018deep,
-  title = {Deep Semantic Role Labeling with Self-Attention},
-  author = {Tan, Zhixing and Wang, Mingxuan and Xie, Jun and Chen, Yidong and Shi, Xiaodong},
-  booktitle = {AAAI Conference on Artificial Intelligence},
-  year = {2018}
-}
-```
-
-## Contact
-
-This code is written by Zhixing Tan. If you have any problems, feel free to send an <a href="mailto:playinf@stu.xmu.edu.cn">email</a>.
+Data that we used can be found in this [Link](https://drive.google.com/drive/folders/1YRzFhwzPmxISgB-Ub7h60nkpW6xMYk1b?usp=sharing).
