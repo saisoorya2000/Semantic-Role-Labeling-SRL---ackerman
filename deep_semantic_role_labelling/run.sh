@@ -3,7 +3,7 @@ SRLPATH="data/srl"
 TAGGERPATH="."
 DATAPATH="data/srl"
 EMBPATH="data/glove"
-DEVICE=['cpu']
+DEVICE=[0]
 
 export PYTHONPATH=$TAGGERPATH:$PYTHONPATH
 export PERL5LIB="$SRLPATH/lib:$PERL5LIB"
@@ -16,7 +16,7 @@ python $TAGGERPATH/tagger/bin/trainer.py \
   --vocabulary $DATAPATH/deep_srl/word_dict $DATAPATH/deep_srl/label_dict \
   --parameters="save_summary=false,feature_size=100,hidden_size=200,filter_size=800,"`
                `"residual_dropout=0.2,num_hidden_layers=10,attention_dropout=0.1,"`
-               `"relu_dropout=0.1,batch_size=4096,optimizer=adadelta,initializer=orthogonal,"`
+               `"relu_dropout=0.1,batch_size=8196,optimizer=adadelta,initializer=orthogonal,"`
                `"initializer_gain=1.0,train_steps=600000,"`
                `"learning_rate_schedule=piecewise_constant_decay,"`
                `"learning_rate_values=[1.0,0.5,0.25,],"`
